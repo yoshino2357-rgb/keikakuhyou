@@ -5,6 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>週間カレンダー</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
   <style>
     body {
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -193,6 +195,23 @@
   </div>
 
   <script>
+    // Firebase設定
+    const firebaseConfig = {
+      apiKey: "AIzaSyAq30ZqNRfKjNgpRnqNROm7NT29K9adiFU",
+      authDomain: "calendar-3fdfe.firebaseapp.com",
+      databaseURL: "https://calendar-3fdfe-default-rtdb.firebaseio.com",
+      projectId: "calendar-3fdfe",
+      storageBucket: "calendar-3fdfe.firebasestorage.app",
+      messagingSenderId: "428370483906",
+      appId: "1:428370483906:web:3dd29d1c64b9df2e10f95b",
+      measurementId: "G-0NX4CXC6Z5"
+    };
+
+    // Firebase初期化
+    firebase.initializeApp(firebaseConfig);
+    const database = firebase.database();
+    const tasksRef = database.ref('tasks');
+
     let tasks = [];
     let currentWeekStart = new Date();
     let selectedDateTime = null;
@@ -237,6 +256,18 @@
     const submitText = document.getElementById('submitText');
     const deleteBtn = document.getElementById('deleteBtn');
 
+    // Firebaseからデータを読み込み
+    tasksRef.on('value', (snapshot) => {
+      tasks = [];
+      snapshot.forEach((childSnapshot) => {
+        tasks.push({
+          firebaseKey: childSnapshot.key,
+          ...childSnapshot.val()
+        });
+      });
+      renderWeek();
+    });
+
     addNewTaskBtn.addEventListener('click', () => {
       const today = new Date();
       const dateStr = formatDate(today);
@@ -276,10 +307,12 @@
 
     deleteBtn.addEventListener('click', () => {
       if (editingId && confirm('この予定を削除しますか？')) {
-        tasks = tasks.filter(task => task.id !== editingId);
+        const task = tasks.find(t => t.id === editingId);
+        if (task && task.firebaseKey) {
+          tasksRef.child(task.firebaseKey).remove();
+        }
         taskModal.classList.add('hidden');
         resetForm();
-        renderWeek();
       }
     });
 
@@ -295,28 +328,28 @@
 
       if (!title.trim() || !date || !startTime) return;
 
+      const taskData = {
+        title,
+        date,
+        startTime,
+        endTime,
+        priority,
+        notes,
+        id: editingId || Date.now()
+      };
+
       if (editingId) {
-        tasks = tasks.map(task => 
-          task.id === editingId 
-            ? { id: editingId, title, date, startTime, endTime, priority, notes }
-            : task
-        );
+        const task = tasks.find(t => t.id === editingId);
+        if (task && task.firebaseKey) {
+          tasksRef.child(task.firebaseKey).update(taskData);
+        }
         editingId = null;
       } else {
-        tasks.push({
-          id: Date.now(),
-          title,
-          date,
-          startTime,
-          endTime,
-          priority,
-          notes
-        });
+        tasksRef.push(taskData);
       }
 
       taskModal.classList.add('hidden');
       resetForm();
-      renderWeek();
     });
 
     function resetForm() {
@@ -425,4 +458,3 @@
   </script>
 </body>
 </html>
-
