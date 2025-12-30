@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>週間カレンダー</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+    table {
+      border-collapse: collapse;
+    }
+    .time-cell {
+      background: white;
+      padding: 4px 8px;
+      text-align: right;
+      font-size: 11px;
+      color: #70757a;
+      border-right: 1px solid #dadce0;
+      border-bottom: 1px solid #dadce0;
+      vertical-align: top;
+      width: 80px;
+    }
+    .day-cell {
+      background: white;
+      min-height: 48px;
+      padding: 4px;
+      position: relative;
+      border-right: 1px solid #dadce0;
+      border-bottom: 1px solid #dadce0;
+      vertical-align: top;
+    }
+    .day-cell.today {
+      background: #e8f0fe;
+    }
+    .task-item {
+      font-size: 11px;
+      padding: 2px 4px;
+      margin-bottom: 2px;
+      border-radius: 3px;
+      cursor: pointer;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .task-item:hover {
+      opacity: 0.8;
+    }
+    .day-header {
+      background: white;
+      padding: 12px;
+      text-align: center;
+      font-weight: 500;
+      border-right: 1px solid #dadce0;
+      border-bottom: 2px solid #dadce0;
+      font-size: 11px;
+      color: #70757a;
+    }
+    .day-header.today {
+      color: #1967d2;
+    }
+    .day-header.today .date-number {
+      background: #1967d2;
+      color: white;
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      font-weight: 500;
+    }
+    .day-header .date-number {
+      font-size: 20px;
+      color: #3c4043;
+      font-weight: 400;
+    }
+  </style>
+</head>
+<body class="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-6">
+  <div class="max-w-7xl mx-auto">
+    <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
+      <h1 class="text-3xl font-bold text-gray-800 mb-2">週間カレンダー</h1>
+      <p class="text-gray-600">予定を管理しよう</p>
+    </div>
+
+    <button id="addNewTask" class="w-full bg-blue-500 hover:bg-blue-600 text-white font-semibold py-3 px-4 rounded-lg shadow-md flex items-center justify-center gap-2 mb-6 transition">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <line x1="12" y1="5" x2="12" y2="19"></line>
+        <line x1="5" y1="12" x2="19" y2="12"></line>
+      </svg>
+      新しい予定を追加
+    </button>
+
+    <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
+      <div class="flex items-center justify-between mb-4">
+        <button id="prevWeek" class="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition">
+          ← 前週
+        </button>
+        <div class="text-center">
+          <h2 id="currentWeek" class="text-2xl font-bold text-gray-800"></h2>
+          <button id="todayBtn" class="text-sm text-blue-600 hover:text-blue-800 mt-1">今週に戻る</button>
+        </div>
+        <button id="nextWeek" class="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition">
+          次週 →
+        </button>
+      </div>
+
+      <div class="overflow-x-auto">
+        <table class="w-full border-collapse" style="min-width: 800px;">
+          <thead>
+            <tr>
+              <th class="bg-white border-r border-b-2 border-gray-300 p-2 w-20"></th>
+              <th id="weekGrid" colspan="7"></th>
+            </tr>
+            <tr id="weekHeaders">
+              <th class="bg-white border-r border-b-2 border-gray-300 p-2 w-20"></th>
+            </tr>
+          </thead>
+          <tbody id="weekBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div id="taskModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50">
+      <div class="bg-white rounded-lg shadow-xl p-6 max-w-md w-full mx-4 max-h-[90vh] overflow-y-auto">
+        <div class="flex justify-between items-center mb-4">
+          <h2 id="modalTitle" class="text-xl font-bold text-gray-800"></h2>
+          <button id="closeModal" class="text-gray-500 hover:text-gray-700">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
+        </div>
+
+        <form id="taskForm">
+          <div class="space-y-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">タイトル *</label>
+              <input type="text" id="title" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="例: 会議、買い物など" required>
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">日付 *</label>
+              <input type="date" id="date" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+            </div>
+
+            <div class="grid grid-cols-2 gap-4">
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">開始時刻 *</label>
+                <input type="time" id="startTime" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">終了時刻</label>
+                <input type="time" id="endTime" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+              </div>
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">優先度</label>
+              <select id="priority" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <option value="high">高</option>
+                <option value="medium" selected>中</option>
+                <option value="low">低</option>
+              </select>
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">メモ</label>
+              <textarea id="notes" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" rows="3" placeholder="詳細や備考を入力"></textarea>
+            </div>
+
+            <div class="flex gap-3">
+              <button type="submit" class="flex-1 bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded-md transition">
+                <span id="submitText">追加</span>
+              </button>
+              <button type="button" id="cancelFormBtn" class="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-800 font-semibold py-2 px-4 rounded-md transition">
+                キャンセル
+              </button>
+            </div>
+
+            <button type="button" id="deleteBtn" class="w-full bg-red-500 hover:bg-red-600 text-white font-semibold py-2 px-4 rounded-md transition hidden">
+              削除
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let tasks = [];
+    let currentWeekStart = new Date();
+    let selectedDateTime = null;
+    let editingId = null;
+
+    const priorityColors = {
+      high: { bg: '#fee2e2', border: '#fca5a5', text: '#991b1b' },
+      medium: { bg: '#fef3c7', border: '#fcd34d', text: '#92400e' },
+      low: { bg: '#dcfce7', border: '#86efac', text: '#166534' }
+    };
+
+    const priorityLabels = {
+      high: '高',
+      medium: '中',
+      low: '低'
+    };
+
+    const hours = Array.from({length: 24}, (_, i) => i);
+
+    // 週の開始日（月曜日）を取得
+    function getWeekStart(date) {
+      const d = new Date(date);
+      const day = d.getDay();
+      const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+      return new Date(d.setDate(diff));
+    }
+
+    currentWeekStart = getWeekStart(new Date());
+
+    const addNewTaskBtn = document.getElementById('addNewTask');
+    const prevWeekBtn = document.getElementById('prevWeek');
+    const nextWeekBtn = document.getElementById('nextWeek');
+    const todayBtn = document.getElementById('todayBtn');
+    const currentWeekEl = document.getElementById('currentWeek');
+    const weekHeaders = document.getElementById('weekHeaders');
+    const weekBody = document.getElementById('weekBody');
+    const taskModal = document.getElementById('taskModal');
+    const closeModal = document.getElementById('closeModal');
+    const modalTitle = document.getElementById('modalTitle');
+    const taskForm = document.getElementById('taskForm');
+    const cancelFormBtn = document.getElementById('cancelFormBtn');
+    const submitText = document.getElementById('submitText');
+    const deleteBtn = document.getElementById('deleteBtn');
+
+    addNewTaskBtn.addEventListener('click', () => {
+      const today = new Date();
+      const dateStr = formatDate(today);
+      const hour = today.getHours();
+      
+      modalTitle.textContent = '新しい予定を追加';
+      document.getElementById('date').value = dateStr;
+      document.getElementById('startTime').value = `${String(hour).padStart(2, '0')}:00`;
+      
+      taskModal.classList.remove('hidden');
+    });
+
+    prevWeekBtn.addEventListener('click', () => {
+      currentWeekStart.setDate(currentWeekStart.getDate() - 7);
+      renderWeek();
+    });
+
+    nextWeekBtn.addEventListener('click', () => {
+      currentWeekStart.setDate(currentWeekStart.getDate() + 7);
+      renderWeek();
+    });
+
+    todayBtn.addEventListener('click', () => {
+      currentWeekStart = getWeekStart(new Date());
+      renderWeek();
+    });
+
+    closeModal.addEventListener('click', () => {
+      taskModal.classList.add('hidden');
+      resetForm();
+    });
+
+    cancelFormBtn.addEventListener('click', () => {
+      taskModal.classList.add('hidden');
+      resetForm();
+    });
+
+    deleteBtn.addEventListener('click', () => {
+      if (editingId && confirm('この予定を削除しますか？')) {
+        tasks = tasks.filter(task => task.id !== editingId);
+        taskModal.classList.add('hidden');
+        resetForm();
+        renderWeek();
+      }
+    });
+
+    taskForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      
+      const title = document.getElementById('title').value;
+      const date = document.getElementById('date').value;
+      const startTime = document.getElementById('startTime').value;
+      const endTime = document.getElementById('endTime').value;
+      const priority = document.getElementById('priority').value;
+      const notes = document.getElementById('notes').value;
+
+      if (!title.trim() || !date || !startTime) return;
+
+      if (editingId) {
+        tasks = tasks.map(task => 
+          task.id === editingId 
+            ? { id: editingId, title, date, startTime, endTime, priority, notes }
+            : task
+        );
+        editingId = null;
+      } else {
+        tasks.push({
+          id: Date.now(),
+          title,
+          date,
+          startTime,
+          endTime,
+          priority,
+          notes
+        });
+      }
+
+      taskModal.classList.add('hidden');
+      resetForm();
+      renderWeek();
+    });
+
+    function resetForm() {
+      document.getElementById('title').value = '';
+      document.getElementById('date').value = '';
+      document.getElementById('startTime').value = '';
+      document.getElementById('endTime').value = '';
+      document.getElementById('priority').value = 'medium';
+      document.getElementById('notes').value = '';
+      submitText.textContent = '追加';
+      deleteBtn.classList.add('hidden');
+      editingId = null;
+    }
+
+    function renderWeek() {
+      const weekEnd = new Date(currentWeekStart);
+      weekEnd.setDate(weekEnd.getDate() + 6);
+      
+      currentWeekEl.textContent = `${currentWeekStart.getFullYear()}年 ${currentWeekStart.getMonth() + 1}月${currentWeekStart.getDate()}日 - ${weekEnd.getMonth() + 1}月${weekEnd.getDate()}日`;
+
+      // 曜日ヘッダー（横軸）
+      const dayNames = ['月', '火', '水', '木', '金', '土', '日'];
+      const today = formatDate(new Date());
+      let headersHtml = '<th class="bg-white border-r border-b-2 border-gray-300 p-2 w-20"></th>';
+      
+      for (let i = 0; i < 7; i++) {
+        const date = new Date(currentWeekStart);
+        date.setDate(date.getDate() + i);
+        const dateStr = formatDate(date);
+        const isToday = dateStr === today;
+        
+        headersHtml += `
+          <th class="day-header ${isToday ? 'today' : ''}">
+            <div class="mb-1">${dayNames[i]}</div>
+            <div class="${isToday ? 'date-number' : 'date-number'}">${date.getDate()}</div>
+          </th>
+        `;
+      }
+      weekHeaders.innerHTML = headersHtml;
+
+      // 時間グリッド（縦軸）
+      let bodyHtml = '';
+      
+      for (let hour = 0; hour < 24; hour++) {
+        const timeLabel = hour === 0 ? '' : `${String(hour).padStart(2, '0')}:00`;
+        bodyHtml += `<tr><td class="time-cell">${timeLabel}</td>`;
+        
+        for (let day = 0; day < 7; day++) {
+          const date = new Date(currentWeekStart);
+          date.setDate(date.getDate() + day);
+          const dateStr = formatDate(date);
+          const isToday = dateStr === today;
+          
+          const hourTasks = tasks.filter(task => {
+            if (task.date !== dateStr) return false;
+            const taskHour = parseInt(task.startTime.split(':')[0]);
+            return taskHour === hour;
+          }).sort((a, b) => a.startTime.localeCompare(b.startTime));
+
+          bodyHtml += `
+            <td class="day-cell ${isToday ? 'today' : ''}">
+              ${hourTasks.map(task => `
+                <div class="task-item" 
+                     style="background: ${priorityColors[task.priority].bg}; border-left: 3px solid ${priorityColors[task.priority].border}; color: ${priorityColors[task.priority].text}"
+                     onclick="editTask(${task.id})">
+                  ${task.startTime} ${task.title}
+                </div>
+              `).join('')}
+            </td>
+          `;
+        }
+        bodyHtml += '</tr>';
+      }
+      
+      weekBody.innerHTML = bodyHtml;
+    }
+
+    function editTask(id) {
+      const task = tasks.find(t => t.id === id);
+      if (!task) return;
+
+      document.getElementById('title').value = task.title;
+      document.getElementById('date').value = task.date;
+      document.getElementById('startTime').value = task.startTime;
+      document.getElementById('endTime').value = task.endTime || '';
+      document.getElementById('priority').value = task.priority;
+      document.getElementById('notes').value = task.notes || '';
+
+      editingId = id;
+      submitText.textContent = '更新';
+      deleteBtn.classList.remove('hidden');
+      
+      const date = new Date(task.date);
+      modalTitle.textContent = `${date.getMonth() + 1}月${date.getDate()}日 ${task.startTime} の予定を編集`;
+      taskModal.classList.remove('hidden');
+    }
+
+    function formatDate(date) {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    }
+
+    renderWeek();
+  </script>
+</body>
+</html>
+
